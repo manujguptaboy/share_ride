@@ -1,5 +1,5 @@
 manujesh = {
-    name: "manujesh",
+    name: "manujesh1",
     age: 20,
     city: "delhi",
     country: "india",
