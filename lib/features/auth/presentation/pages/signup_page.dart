@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:share_ride/core/constants/app_strings.dart';
 import 'package:share_ride/features/auth/data/auth_api.dart';
+import 'package:share_ride/features/auth/presentation/pages/phone_otp_page.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});
@@ -67,7 +68,12 @@ class _SignupPageState extends State<SignupPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Account created for $name')),
       );
-      Navigator.pop(context);
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (_) => PhoneOtpPage(phoneNumber: phone),
+        ),
+      );
     } catch (error) {
       if (!mounted) return;
       final message = error.toString().replaceFirst('Exception: ', '');

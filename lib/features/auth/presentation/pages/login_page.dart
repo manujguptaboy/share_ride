@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:share_ride/core/constants/app_strings.dart';
 import 'package:share_ride/features/auth/data/auth_api.dart';
+import 'package:share_ride/features/auth/presentation/pages/phone_otp_page.dart';
 import 'package:share_ride/features/auth/presentation/pages/signup_page.dart';
 import 'package:share_ride/features/home/presentation/pages/welcome_page.dart';
 
@@ -44,14 +45,64 @@ class _LoginPageState extends State<LoginPage> {
     final password = _passwordController.text;
 
     try {
-      await AuthApi.login(email: email, password: password);
+      final data = await AuthApi.login(email: email, password: password);
       if (!mounted) return;
+
+      final requireOtp = data['requireOtpVerification'] == true;
+      final user = data['user'];
+      if (requireOtp && user is Map<String, dynamic>) {
+        final phone = user['phone'] as String?;
+        if (phone == null || phone.trim().isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'Phone number is missing. Contact support or update your profile.',
+              ),
+            ),
+          );
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              data['message'] as String? ??
+                  'Verify your phone to finish signing in.',
+            ),
+          ),
+        );
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) => PhoneOtpPage(phoneNumber: phone.trim()),
+          ),
+        );
+        return;
+      }
+
+      String displayName = email.split('@').first;
+      String displayEmail = email;
+      if (user is Map<String, dynamic>) {
+        final name = user['name'] as String?;
+        final mail = user['email'] as String?;
+        if (name != null && name.trim().isNotEmpty) {
+          displayName = name.trim();
+        }
+        if (mail != null && mail.trim().isNotEmpty) {
+          displayEmail = mail.trim().toLowerCase();
+        }
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Welcome back, $email')),
+        SnackBar(content: Text('Welcome back, $displayName')),
       );
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const WelcomePage()),
+        MaterialPageRoute(
+          builder: (_) => WelcomePage(
+            userName: displayName,
+            userEmail: displayEmail,
+          ),
+        ),
       );
     } catch (error) {
       debugPrint('login error: $error');
