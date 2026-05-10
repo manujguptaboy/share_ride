@@ -2,7 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:share_ride/features/auth/presentation/pages/login_page.dart';
+import 'package:share_ride/features/home/data/map_api.dart';
 import 'package:share_ride/features/home/data/place_api.dart';
+import 'package:share_ride/features/home/presentation/pages/directions_page.dart';
+import 'package:share_ride/features/home/presentation/pages/start_location_picker_page.dart';
+import 'package:latlong2/latlong.dart';
 
 class WelcomePage extends StatefulWidget {
   const WelcomePage({
@@ -57,6 +61,28 @@ class _WelcomePageState extends State<WelcomePage> {
       (_) => false,
     );
   }
+
+  Future<void> _openStartLocationPicker() async {
+    final selected = await Navigator.push<LatLng>(
+      context,
+      MaterialPageRoute(builder: (_) => const StartLocationPickerPage()),
+    );
+    if (!mounted || selected == null) return;
+
+    final address = await MapApi.reverseGeocode(
+      lat: selected.latitude,
+      lng: selected.longitude,
+    );
+    if (!mounted) return;
+
+    _pickupController.text = address.isNotEmpty
+        ? address
+        : '${selected.latitude.toStringAsFixed(5)}, ${selected.longitude.toStringAsFixed(5)}';
+
+    setState(() {
+      _pickupSuggestions = [];
+    });
+  }
   final TextEditingController _pickupController = TextEditingController();
   final TextEditingController _dropoffController = TextEditingController();
   Timer? _pickupDebounce;
@@ -98,6 +124,30 @@ class _WelcomePageState extends State<WelcomePage> {
         _dropoffSuggestions = suggestions;
       }
     });
+  }
+
+  void _openDirections() {
+    final origin = _pickupController.text.trim();
+    final destination = _dropoffController.text.trim();
+
+    if (origin.isEmpty || destination.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Please enter both pickup and drop-off locations'),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DirectionsPage(
+          origin: origin,
+          destination: destination,
+        ),
+      ),
+    );
   }
 
   Widget _buildHomeTab(ThemeData theme) {
@@ -143,7 +193,12 @@ class _WelcomePageState extends State<WelcomePage> {
             hint: 'Pickup location',
             controller: _pickupController,
             suggestions: _pickupSuggestions,
+            showCurrentLocationOption: true,
+            onCurrentLocationTap: () {
+              _openStartLocationPicker();
+            },
             onChanged: (value) {
+              setState(() {});
               _pickupDebounce?.cancel();
               _pickupDebounce = Timer(const Duration(milliseconds: 350), () {
                 _fetchSuggestions(isPickup: true, input: value);
@@ -200,7 +255,7 @@ class _WelcomePageState extends State<WelcomePage> {
           SizedBox(
             height: 56,
             child: FilledButton.icon(
-              onPressed: () {},
+              onPressed: _openDirections,
               style: FilledButton.styleFrom(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(18),
@@ -528,6 +583,8 @@ class _RideInput extends StatelessWidget {
     this.suggestions = const [],
     this.onChanged,
     this.onSuggestionTap,
+    this.showCurrentLocationOption = false,
+    this.onCurrentLocationTap,
   });
 
   final IconData icon;
@@ -537,9 +594,15 @@ class _RideInput extends StatelessWidget {
   final List<String> suggestions;
   final ValueChanged<String>? onChanged;
   final ValueChanged<String>? onSuggestionTap;
+  final bool showCurrentLocationOption;
+  final VoidCallback? onCurrentLocationTap;
 
   @override
   Widget build(BuildContext context) {
+    final hasTypedText = (controller?.text.trim().isNotEmpty ?? false);
+    final shouldShowCurrentLocation = showCurrentLocationOption && hasTypedText;
+    final hasDropdown = shouldShowCurrentLocation || suggestions.isNotEmpty;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -562,8 +625,8 @@ class _RideInput extends StatelessWidget {
             ),
           ),
         ),
-        if (suggestions.isNotEmpty) const SizedBox(height: 8),
-        if (suggestions.isNotEmpty)
+        if (hasDropdown) const SizedBox(height: 8),
+        if (hasDropdown)
           Container(
             decoration: BoxDecoration(
               color: Colors.white,
@@ -571,20 +634,31 @@ class _RideInput extends StatelessWidget {
               border: Border.all(color: const Color(0xFFE1E1E1)),
             ),
             child: Column(
-              children: suggestions
-                  .take(4)
-                  .map(
-                    (item) => ListTile(
-                      dense: true,
-                      title: Text(
-                        item,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      onTap: () => onSuggestionTap?.call(item),
+              children: [
+                if (shouldShowCurrentLocation)
+                  ListTile(
+                    dense: true,
+                    leading: const Icon(
+                      Icons.my_location_rounded,
+                      color: Color(0xFF27AE60),
                     ),
-                  )
-                  .toList(),
+                    title: const Text('Choose current location'),
+                    onTap: onCurrentLocationTap,
+                  ),
+                if (shouldShowCurrentLocation && suggestions.isNotEmpty)
+                  const Divider(height: 1),
+                ...suggestions.take(4).map(
+                  (item) => ListTile(
+                    dense: true,
+                    title: Text(
+                      item,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    onTap: () => onSuggestionTap?.call(item),
+                  ),
+                ),
+              ],
             ),
           ),
       ],
