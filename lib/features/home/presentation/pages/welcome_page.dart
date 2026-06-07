@@ -55,6 +55,49 @@ class _WelcomePageState extends State<WelcomePage> {
     return (parts[0][0] + parts[1][0]).toUpperCase();
   }
 
+  Widget _pickerTheme(BuildContext context, Widget? child) {
+    return Theme(
+      data: Theme.of(context).copyWith(
+        colorScheme: const ColorScheme.light(
+          primary: Color(0xFF4A35F3),
+          onPrimary: Colors.white,
+          onSurface: Colors.black87,
+        ),
+      ),
+      child: child!,
+    );
+  }
+
+  Future<void> _pickDate() async {
+    final now = DateTime.now();
+    final picked = await showDatePicker(
+      context: context,
+      initialDate: now,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365)),
+      builder: _pickerTheme,
+    );
+    if (!mounted || picked == null) return;
+
+    final day = picked.day.toString().padLeft(2, '0');
+    final month = picked.month.toString().padLeft(2, '0');
+    _dateController.text = '$day/$month/${picked.year}';
+  }
+
+  Future<void> _pickTime() async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.now(),
+      builder: _pickerTheme,
+    );
+    if (!mounted || picked == null) return;
+
+    final hour = picked.hourOfPeriod.toString().padLeft(2, '0');
+    final minute = picked.minute.toString().padLeft(2, '0');
+    final period = picked.period == DayPeriod.am ? 'AM' : 'PM';
+    _timeController.text = '$hour:$minute $period';
+  }
+
   void _logout() {
     Navigator.of(context).pushAndRemoveUntil(
       MaterialPageRoute<void>(builder: (_) => const LoginPage()),
@@ -85,6 +128,8 @@ class _WelcomePageState extends State<WelcomePage> {
   }
   final TextEditingController _pickupController = TextEditingController();
   final TextEditingController _dropoffController = TextEditingController();
+  final TextEditingController _dateController = TextEditingController();
+  final TextEditingController _timeController = TextEditingController();
   Timer? _pickupDebounce;
   Timer? _dropoffDebounce;
   List<String> _pickupSuggestions = [];
@@ -96,6 +141,8 @@ class _WelcomePageState extends State<WelcomePage> {
     _dropoffDebounce?.cancel();
     _pickupController.dispose();
     _dropoffController.dispose();
+    _dateController.dispose();
+    _timeController.dispose();
     super.dispose();
   }
 
@@ -233,20 +280,26 @@ class _WelcomePageState extends State<WelcomePage> {
           ),
           const SizedBox(height: 14),
           Row(
-            children: const [
+            children: [
               Expanded(
                 child: _RideInput(
                   icon: Icons.calendar_today_outlined,
-                  iconColor: Color(0xFF5B4AE5),
+                  iconColor: const Color(0xFF5B4AE5),
                   hint: 'dd/mm/yyyy',
+                  controller: _dateController,
+                  readOnly: true,
+                  onTap: _pickDate,
                 ),
               ),
               SizedBox(width: 14),
               Expanded(
                 child: _RideInput(
                   icon: Icons.access_time_outlined,
-                  iconColor: Color(0xFF5B4AE5),
+                  iconColor: const Color(0xFF5B4AE5),
                   hint: '--:-- --',
+                  controller: _timeController,
+                  readOnly: true,
+                  onTap: _pickTime,
                 ),
               ),
             ],
@@ -585,6 +638,8 @@ class _RideInput extends StatelessWidget {
     this.onSuggestionTap,
     this.showCurrentLocationOption = false,
     this.onCurrentLocationTap,
+    this.readOnly = false,
+    this.onTap,
   });
 
   final IconData icon;
@@ -596,6 +651,8 @@ class _RideInput extends StatelessWidget {
   final ValueChanged<String>? onSuggestionTap;
   final bool showCurrentLocationOption;
   final VoidCallback? onCurrentLocationTap;
+  final bool readOnly;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -609,6 +666,8 @@ class _RideInput extends StatelessWidget {
         TextField(
           controller: controller,
           onChanged: onChanged,
+          readOnly: readOnly,
+          onTap: onTap,
           decoration: InputDecoration(
             hintText: hint,
             prefixIcon: Icon(icon, color: iconColor),
@@ -632,7 +691,7 @@ class _RideInput extends StatelessWidget {
               color: Colors.white,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(color: const Color(0xFFE1E1E1)),
-            ),
+            ),  
             child: Column(
               children: [
                 if (shouldShowCurrentLocation)
