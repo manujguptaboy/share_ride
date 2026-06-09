@@ -81,7 +81,16 @@ class _LoginPageState extends State<LoginPage> {
 
       String displayName = email.split('@').first;
       String displayEmail = email;
+      int? userId;
+      var aadhaarVerified = false;
       if (user is Map<String, dynamic>) {
+        final id = user['id'];
+        if (id is int) {
+          userId = id;
+        } else if (id != null) {
+          userId = int.tryParse('$id');
+        }
+        aadhaarVerified = user['aadhaarVerified'] == true;
         final name = user['name'] as String?;
         final mail = user['email'] as String?;
         if (name != null && name.trim().isNotEmpty) {
@@ -99,8 +108,10 @@ class _LoginPageState extends State<LoginPage> {
         context,
         MaterialPageRoute(
           builder: (_) => WelcomePage(
+            userId: userId,
             userName: displayName,
             userEmail: displayEmail,
+            aadhaarVerified: aadhaarVerified,
           ),
         ),
       );

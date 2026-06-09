@@ -12,14 +12,16 @@ class AuthApi {
     required String password,
   }) async {
     debugPrint('login baseUrl: $_baseUrl');
-    final response = await http.post(
-      Uri.parse('$_baseUrl/login'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({
-        'email': email,
-        'password': password,
-      }),
-    ).timeout(const Duration(seconds: 15));
+    final response = await http
+        .post(
+          Uri.parse('$_baseUrl/login'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'email': email,
+            'password': password,
+          }),
+        )
+        .timeout(const Duration(seconds: 15));
 
     debugPrint('login response: $response');
     final data = _decodeResponse(response.body);
@@ -28,6 +30,27 @@ class AuthApi {
     }
 
     throw Exception(data['message'] ?? 'Login failed');
+  }
+
+  static Future<VerificationStatus> getVerificationStatus(int userId) async {
+    final response = await http
+        .get(Uri.parse('$_baseUrl/verification/$userId'))
+        .timeout(const Duration(seconds: 15));
+
+    final data = _decodeResponse(response.body);
+    if (response.statusCode >= 200 &&
+        response.statusCode < 300 &&
+        data['success'] == true) {
+      final verification = data['verification'];
+      if (verification is Map<String, dynamic>) {
+        return VerificationStatus(
+          phoneOtpVerified: verification['phoneOtpVerified'] == true,
+          aadhaarVerified: verification['aadhaarVerified'] == true,
+        );
+      }
+    }
+
+    throw Exception(data['message'] ?? 'Failed to fetch verification status');
   }
 
   static Future<Map<String, dynamic>> signup({
@@ -70,4 +93,14 @@ class AuthApi {
     }
     return {};
   }
+}
+
+class VerificationStatus {
+  const VerificationStatus({
+    required this.phoneOtpVerified,
+    required this.aadhaarVerified,
+  });
+
+  final bool phoneOtpVerified;
+  final bool aadhaarVerified;
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:share_ride/core/theme/ride_map_style.dart';
 import 'package:share_ride/features/home/data/directions_api.dart';
 
 class DirectionsPage extends StatefulWidget {
@@ -177,64 +178,64 @@ class _DirectionsPageState extends State<DirectionsPage> {
         _endPoint != null;
 
     if (canUseTiles) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(14),
-        child: Stack(
-          children: [
-            FlutterMap(
-              mapController: _mapController,
-              options: MapOptions(
-                center: center,
-                zoom: 13.5,
-                minZoom: 3,
-                maxZoom: 19,
-                keepAlive: true,
-                enableScrollWheel: true,
-                interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.rotate,
-              ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.share_ride.app',
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(RideMapStyle.mapBorderRadius),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1A000000),
+              blurRadius: 12,
+              offset: Offset(0, 4),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(RideMapStyle.mapBorderRadius),
+          child: Stack(
+            children: [
+              FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  center: center,
+                  zoom: 13.5,
+                  minZoom: 3,
+                  maxZoom: 19,
+                  keepAlive: true,
+                  enableScrollWheel: true,
+                  interactiveFlags: InteractiveFlag.all & ~InteractiveFlag.rotate,
                 ),
-                if (_routePoints.isNotEmpty)
-                  PolylineLayer(
-                    polylines: [
-                      Polyline(
-                        points: _routePoints,
-                        color: const Color(0xFF4A35F3),
-                        strokeWidth: 5,
-                      ),
+                children: [
+                  RideMapStyle.tileLayer(),
+                  if (_routePoints.isNotEmpty)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: _routePoints,
+                          color: RideMapStyle.routeColor,
+                          strokeWidth: RideMapStyle.routeStrokeWidth,
+                        ),
+                      ],
+                    ),
+                  MarkerLayer(
+                    markers: [
+                      if (_startPoint != null)
+                        Marker(
+                          point: _startPoint!,
+                          width: 36,
+                          height: 36,
+                          builder: (_) => RideMapStyle.pickupPin(),
+                        ),
+                      if (_endPoint != null)
+                        Marker(
+                          point: _endPoint!,
+                          width: 36,
+                          height: 36,
+                          builder: (_) => RideMapStyle.dropoffPin(),
+                        ),
                     ],
                   ),
-                MarkerLayer(
-                  markers: [
-                    if (_startPoint != null)
-                      Marker(
-                        point: _startPoint!,
-                        width: 34,
-                        height: 34,
-                        builder: (_) => const Icon(
-                          Icons.trip_origin,
-                          color: Colors.green,
-                          size: 30,
-                        ),
-                      ),
-                    if (_endPoint != null)
-                      Marker(
-                        point: _endPoint!,
-                        width: 34,
-                        height: 34,
-                        builder: (_) => const Icon(
-                          Icons.place,
-                          color: Colors.red,
-                          size: 32,
-                        ),
-                      ),
-                  ],
-                ),
-              ],
-            ),
+                ],
+              ),
             Positioned(
               right: 10,
               top: 10,
@@ -256,15 +257,16 @@ class _DirectionsPageState extends State<DirectionsPage> {
                   ),
                 ],
               ),
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       );
     }
 
     if (_staticMapUrl != null && _staticMapUrl!.isNotEmpty) {
       return ClipRRect(
-        borderRadius: BorderRadius.circular(14),
+        borderRadius: BorderRadius.circular(RideMapStyle.mapBorderRadius),
         child: Image.network(
           _staticMapUrl!,
           height: 320,
